@@ -1,5 +1,6 @@
 # Azure DevOps Kit
 
+![CI](https://github.com/adamayoung/AzureDevOpsKit/workflows/CI/badge.svg)
 [![Swift Package Manager compatible](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-brightgreen.svg)](https://github.com/apple/swift-package-manager)
 
 A Swift Package for Microsoft Azure DevOps <https://dev.azure.com>.
