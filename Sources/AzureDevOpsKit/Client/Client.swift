@@ -2,43 +2,40 @@ import Foundation
 
 protocol Client {
 
-    func setPAT(_ pat: String?)
-
-    func send<Response: Decodable>(_ endpoint: Endpoint,
+    func request<Response: Decodable>(_ endpoint: Endpoint,
                                    completion: @escaping (Result<Response, AzureDevOpsError>) -> Void)
 
 }
 
 class HTTPClient: Client {
 
-    private let baseURL: URL
-    private let organisationName: String
     private let urlSession: URLSession
+    private let jsonDecoder: JSONDecoder
 
-    private var pat: String?
-
-    init(organisationName: String, urlSession: URLSession = .shared) {
-        self.organisationName = organisationName
+    init(urlSession: URLSession = .shared, jsonDecoder: JSONDecoder = .azureDevOps) {
         self.urlSession = urlSession
-        self.baseURL = URL(string: "https://dev.azure.com/\(organisationName)/_apis")!
-
+        self.jsonDecoder = jsonDecoder
     }
 
-    func setPAT(_ pat: String?) {
-        self.pat = pat
-    }
+    func request<Response: Decodable>(_ endpoint: Endpoint,
+                                      completion: @escaping (Result<Response, AzureDevOpsError>) -> Void) {
+        guard let userCredential = UserCredential.current else {
+            let error = AzureDevOpsError(message: "No user credentials set")
+            completion(.failure(error))
+            return
+        }
 
-    func send<Response: Decodable>(_ endpoint: Endpoint,
-                                   completion: @escaping (Result<Response, AzureDevOpsError>) -> Void) {
-        let url = urlFromPath(endpoint.path)
+        let url = urlFromPath(endpoint.path, for: userCredential)
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = endpoint.method.rawValue
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-        let encodedPAT = "-n:\(pat ?? "")".data(using: .utf8)!.base64EncodedString()
+        urlRequest.setValue(authorizationHeaderValue(for: userCredential), forHTTPHeaderField: "Authorization")
 
-        urlRequest.setValue("Basic \(encodedPAT)", forHTTPHeaderField: "Authorization")
+        urlSession.dataTask(with: urlRequest) { [weak self] data, response, error in
+            guard let self = self else {
+                return
+            }
 
-        urlSession.dataTask(with: urlRequest) { data, response, error in
             if let error = error {
                 let azureDevOpsError = AzureDevOpsError(message: error.localizedDescription)
                 completion(.failure(azureDevOpsError))
@@ -52,17 +49,13 @@ class HTTPClient: Client {
             }
 
             do {
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .formatted(AzureDevOpsDateFormatter())
-                let response = try decoder.decode(Response.self, from: data)
-
+                let response = try self.jsonDecoder.decode(Response.self, from: data)
                 completion(.success(response))
             } catch let error {
                 let azureDevOpsError = AzureDevOpsError(message: error.localizedDescription)
                 completion(.failure(azureDevOpsError))
                 return
             }
-
         }.resume()
     }
 
@@ -70,17 +63,27 @@ class HTTPClient: Client {
 
 extension HTTPClient {
 
-    private func urlFromPath(_ path: URL) -> URL {
+    private func urlFromPath(_ path: URL, for userCredential: UserCredential) -> URL {
         guard var urlComponents = URLComponents(url: path, resolvingAgainstBaseURL: true) else {
             return path
         }
 
+        let baseURL = userCredential.baseURL
         urlComponents.scheme = baseURL.scheme
         urlComponents.host = baseURL.host
         urlComponents.path = baseURL.path + "\(urlComponents.path)"
         urlComponents.query = path.query
 
         return urlComponents.url!
+    }
+
+    private func authorizationHeaderValue(for userCredential: UserCredential) -> String? {
+        guard let pat = userCredential.pat else {
+            return nil
+        }
+
+        let encodedPAT = "-n:\(pat)".data(using: .utf8)!.base64EncodedString()
+        return "Basic \(encodedPAT)"
     }
 
 }

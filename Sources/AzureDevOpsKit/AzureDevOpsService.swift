@@ -1,31 +1,25 @@
 import Foundation
 
+/// The Azure DevOps Service.
+///
+/// - Note: [Azure DevOps documentation](https://docs.microsoft.com/en-gb/azure/devops/?view=azure-devops)
 public final class AzureDevOpsService {
 
+    /// The shared instance of the `AzureDevOpsService`.
+    public static let shared = AzureDevOpsService()
+
+    /// Build service.
+    public let build: BuildService
+    /// Core service.
     public let core: CoreService
+    /// Pipelines service.
     public let pipelines: PipelineService
 
-    private let organisationName: String
-    private let client: Client
-
-    private var pat: String? {
-        didSet {
-            client.setPAT(pat)
-        }
-    }
-
-    public init(organisationName: String, pat: String? = nil) {
-        self.organisationName = organisationName
-        self.client = HTTPClient(organisationName: organisationName)
-        self.client.setPAT(pat)
-        self.pat = pat
-
-        self.core = CoreHTTPService(client: client)
-        self.pipelines = PipelineHTTPService(client: client)
-    }
-
-    public func setPAT(_ pat: String) {
-        self.pat = pat
+    init(buildService: BuildService = BuildDefaultService(), coreService: CoreService = CoreDefaultService(),
+         pipelineService: PipelineService = PipelineDefaultService()) {
+        self.build = buildService
+        self.core = coreService
+        self.pipelines = pipelineService
     }
 
 }
