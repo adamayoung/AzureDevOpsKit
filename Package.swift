@@ -6,11 +6,38 @@ import PackageDescription
 let package = Package(
     name: "AzureDevOpsKit",
     products: [
-        .library(name: "AzureDevOpsKit", targets: ["AzureDevOpsKit"])
+        .library(
+            name: "AzureDevOpsKit",
+            targets: [
+                "AzureDevOpsBuilds",
+                "AzureDevOpsCore",
+                "AzureDevOpsPipelines",
+                "AzureDevOpsShared"
+            ]
+        )
     ],
     dependencies: [],
     targets: [
-        .target(name: "AzureDevOpsKit", dependencies: []),
-        .testTarget(name: "AzureDevOpsKitTests", dependencies: ["AzureDevOpsKit"])
+        .target(
+            name: "AzureDevOpsBuilds",
+            dependencies: ["AzureDevOpsClient", "AzureDevOpsShared", "AzureDevOpsCore"]
+        ),
+        .target(
+            name: "AzureDevOpsCore",
+            dependencies: ["AzureDevOpsClient", "AzureDevOpsShared"]
+        ),
+        .target(
+            name: "AzureDevOpsPipelines",
+            dependencies: ["AzureDevOpsClient", "AzureDevOpsShared", "AzureDevOpsCore"]
+        ),
+        .target(
+            name: "AzureDevOpsShared",
+            dependencies: []
+        ),
+
+        .target(
+            name: "AzureDevOpsClient",
+            dependencies: ["AzureDevOpsShared"]
+        )
     ]
 )
